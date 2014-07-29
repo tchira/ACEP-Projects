@@ -6,7 +6,6 @@ import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder.AudioSource;
 import android.os.Bundle;
-import android.os.Handler;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -32,16 +31,24 @@ public class MainActivity extends Activity implements OnSeekBarChangeListener {
   private int numCrossing,p;
   private short audioData[];
   private int bufferSize;
-  private AudioRecord recorder;
-  private int frequency; 
+  private int frequency;
   private int amplitude;
-  private double lastLevel;
+  private int maxamplitude;
+  private double mEMA;
+  
+  private AudioRecord recorder;
+  //private MediaRecorder recorder;
   
   
   //Recorder constants
   private static final int SAMPLE_DELAY = 75;
-  private static final int AMP_LIMIT=15000;
-  private static final int FREQ_LIMIT=80;
+  private static final int MIN_AMP_LIMIT=15000;
+  private static final int MAX_FREQ_LIMIT=100;
+  private static final int MAX_AMP_LIMIT=18000;
+  private static final int MIN_FREQ_LIMIT=30;
+  private static final int SAMPLE_RATE=48000;
+  private static final double ALPHA=0.05;
+  static final private double EMA_FILTER = 0.6;
   
   
   //
@@ -53,7 +60,8 @@ public class MainActivity extends Activity implements OnSeekBarChangeListener {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_main);
     this.initViews();
-    bufferSize=AudioRecord.getMinBufferSize(8000,AudioFormat.CHANNEL_IN_MONO,
+
+   bufferSize=AudioRecord.getMinBufferSize(SAMPLE_RATE,AudioFormat.CHANNEL_IN_MONO,
 	AudioFormat.ENCODING_PCM_16BIT)*3; //get the buffer size to use with this audio record
     }
 
@@ -84,15 +92,18 @@ public class MainActivity extends Activity implements OnSeekBarChangeListener {
 	    mOpacityBar.setOnSeekBarChangeListener(this);
 }
  
- private void initRecorder(){
-	 			recorder = new AudioRecord (AudioSource.MIC,8000,AudioFormat.CHANNEL_IN_MONO,
+
+private void initRecorder(){
+	 			recorder = new AudioRecord (AudioSource.MIC,SAMPLE_RATE,AudioFormat.CHANNEL_IN_MONO,
 				AudioFormat.ENCODING_PCM_16BIT,bufferSize); //instantiate the AudioRecorder 
 				                
 				recorder.startRecording();
-				rThread = new Thread(new Runnable() {
+	 
+				
+	 	rThread = new Thread(new Runnable() {
 				        public void run() {
 				        	while(rThread != null && !rThread.isInterrupted()){
-				        		try{Thread.sleep(SAMPLE_DELAY);}catch(InterruptedException ie){ie.printStackTrace();}
+				        		
 				        		readAudioBuffer();
 								
 								runOnUiThread(new Runnable() {
@@ -100,9 +111,11 @@ public class MainActivity extends Activity implements OnSeekBarChangeListener {
 									@Override
 									public void run() {
 										Log.e("FREQ",Double.toString(frequency));
-										Log.e("AMP",Double.toString(amplitude));
+										Log.e("AMP",Double.toString(maxamplitude));
 										
-										if(amplitude>AMP_LIMIT&&frequency<FREQ_LIMIT){
+										if(maxamplitude>MIN_AMP_LIMIT&&frequency<MAX_FREQ_LIMIT&&maxamplitude<MAX_AMP_LIMIT&&frequency>MIN_FREQ_LIMIT)
+										{
+											Log.d("LOG", "Blow detected");
 											fogView.setImageBitmap(dTools.getMaskedBitmap(mOpacityBar.getProgress()+10));
 											mOpacityBar.setProgress(mOpacityBar.getProgress()+10);
 										}
@@ -118,7 +131,7 @@ public class MainActivity extends Activity implements OnSeekBarChangeListener {
  private void readAudioBuffer() {
 	 
 	try {
-		audioData = new short [bufferSize]; //short array that pcm data is put into.
+			audioData = new short [bufferSize]; //short array that pcm data is put into.
 			
 			recorder.read(audioData,0,bufferSize); //read the PCM audio data into the audioData array
 	          
@@ -141,10 +154,17 @@ public class MainActivity extends Activity implements OnSeekBarChangeListener {
 		            if (audioData[p]<0 && audioData[p+1]>=0) numCrossing++;
 		            }
 		                                            
-		                                            
-			for (short s : audioData) { amplitude += Math.abs(s); } 
-			amplitude=amplitude/1000;
-			frequency=(8000/bufferSize)*(numCrossing/2); 
+		     
+		      frequency=(SAMPLE_RATE/bufferSize)*(numCrossing/2);
+		     
+		      
+		     
+		    maxamplitude=audioData[0]; 
+			for (short s : audioData) { 
+				if (Math.abs(s)>maxamplitude) maxamplitude=Math.abs(s); 
+			}
+			
+			
 			
 			
 
@@ -188,6 +208,9 @@ public class MainActivity extends Activity implements OnSeekBarChangeListener {
     	}
     }
     catch(Exception e){e.printStackTrace();}
+    
+    
+ 
     
     camera.release();
     camera=null;
