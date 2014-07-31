@@ -33,7 +33,7 @@ public class MainActivity extends Activity implements OnSeekBarChangeListener {
   private int bufferSize;
   private int frequency;
   private int amplitude;
-  private int maxamplitude;
+  
   private double mEMA;
   
   private AudioRecord recorder;
@@ -42,10 +42,10 @@ public class MainActivity extends Activity implements OnSeekBarChangeListener {
   
   //Recorder constants
   private static final int SAMPLE_DELAY = 75;
-  private static final int MIN_AMP_LIMIT=15000;
-  private static final int MAX_FREQ_LIMIT=100;
+  private static final int MIN_AMP_LIMIT=16000;
+  private static final int MAX_FREQ_LIMIT=150;
   private static final int MAX_AMP_LIMIT=18000;
-  private static final int MIN_FREQ_LIMIT=30;
+  private static final int MIN_FREQ_LIMIT=40;
   private static final int SAMPLE_RATE=48000;
   private static final double ALPHA=0.05;
   static final private double EMA_FILTER = 0.6;
@@ -63,6 +63,7 @@ public class MainActivity extends Activity implements OnSeekBarChangeListener {
 
    bufferSize=AudioRecord.getMinBufferSize(SAMPLE_RATE,AudioFormat.CHANNEL_IN_MONO,
 	AudioFormat.ENCODING_PCM_16BIT)*3; //get the buffer size to use with this audio record
+   audioData = new short [bufferSize]; //short array that pcm data is put into.
     }
 
  
@@ -103,6 +104,7 @@ private void initRecorder(){
 	 	rThread = new Thread(new Runnable() {
 				        public void run() {
 				        	while(rThread != null && !rThread.isInterrupted()){
+				        		try{ Thread.sleep(75); } catch (Exception e){e.printStackTrace();} 
 				        		
 				        		readAudioBuffer();
 								
@@ -110,14 +112,20 @@ private void initRecorder(){
 									
 									@Override
 									public void run() {
-										Log.e("FREQ",Double.toString(frequency));
-										Log.e("AMP",Double.toString(maxamplitude));
 										
-										if(maxamplitude>MIN_AMP_LIMIT&&frequency<MAX_FREQ_LIMIT&&maxamplitude<MAX_AMP_LIMIT&&frequency>MIN_FREQ_LIMIT)
+										getMaxAmplitude();
+										//getMedianAmplitude();
+										Log.e("FREQ",Double.toString(getFrequency()));
+										Log.e("AMP",Double.toString(amplitude));
+										
+										if(amplitude>MIN_AMP_LIMIT&&amplitude<MAX_AMP_LIMIT)
 										{
-											Log.d("LOG", "Blow detected");
-											fogView.setImageBitmap(dTools.getMaskedBitmap(mOpacityBar.getProgress()+10));
-											mOpacityBar.setProgress(mOpacityBar.getProgress()+10);
+											if(getFrequency()<MAX_FREQ_LIMIT&&getFrequency()>MIN_FREQ_LIMIT)
+												Log.d("LOG", "Blow detected");
+												
+													fogView.setImageBitmap(dTools.getMaskedBitmap(mOpacityBar.getProgress()+10));
+													mOpacityBar.setProgress(mOpacityBar.getProgress()+10);
+													
 										}
 										
 									}
@@ -129,49 +137,54 @@ private void initRecorder(){
  }
   
  private void readAudioBuffer() {
-	 
-	try {
-			audioData = new short [bufferSize]; //short array that pcm data is put into.
-			
+	 		
+	 		audioData = new short [bufferSize]; //short array that pcm data is put into.
 			recorder.read(audioData,0,bufferSize); //read the PCM audio data into the audioData array
 	          
-		    //Now we need to decode the PCM data using the Zero Crossings Method
-		                            
-		    numCrossing=0; //initialize your number of zero crossings to 0
-		    for (p=0;p<bufferSize/4;p+=4) {
-		           if (audioData[p]>0 && audioData[p+1]<=0) numCrossing++;
-		            if (audioData[p]<0 && audioData[p+1]>=0) numCrossing++;
-		            if (audioData[p+1]>0 && audioData[p+2]<=0) numCrossing++;
-		            if (audioData[p+1]<0 && audioData[p+2]>=0) numCrossing++;
-		            if (audioData[p+2]>0 && audioData[p+3]<=0) numCrossing++;
-		            if (audioData[p+2]<0 && audioData[p+3]>=0) numCrossing++;
-		            if (audioData[p+3]>0 && audioData[p+4]<=0) numCrossing++;
-		            if (audioData[p+3]<0 && audioData[p+4]>=0) numCrossing++;
-		            }//for p
-		    
-		      for (p=(bufferSize/4)*4;p<bufferSize-1;p++) {
-		            if (audioData[p]>0 && audioData[p+1]<=0) numCrossing++;
-		            if (audioData[p]<0 && audioData[p+1]>=0) numCrossing++;
-		            }
-		                                            
-		     
-		      frequency=(SAMPLE_RATE/bufferSize)*(numCrossing/2);
-		     
-		      
-		     
-		    maxamplitude=audioData[0]; 
-			for (short s : audioData) { 
-				if (Math.abs(s)>maxamplitude) maxamplitude=Math.abs(s); 
-			}
-			
-			
-			
-			
+ }
 
-		} catch (Exception e) {
-			e.printStackTrace();
+ 
+ public double getFrequency(){
+		double freq;
+		numCrossing=0; //initialize your number of zero crossings to 0
+	    for (p=0;p<bufferSize/4;p+=4) {
+	           if (audioData[p]>0 && audioData[p+1]<=0) numCrossing++;
+	            if (audioData[p]<0 && audioData[p+1]>=0) numCrossing++;
+	            if (audioData[p+1]>0 && audioData[p+2]<=0) numCrossing++;
+	            if (audioData[p+1]<0 && audioData[p+2]>=0) numCrossing++;
+	            if (audioData[p+2]>0 && audioData[p+3]<=0) numCrossing++;
+	            if (audioData[p+2]<0 && audioData[p+3]>=0) numCrossing++;
+	            if (audioData[p+3]>0 && audioData[p+4]<=0) numCrossing++;
+	            if (audioData[p+3]<0 && audioData[p+4]>=0) numCrossing++;
+	            }//for p
+	    
+	      for (p=(bufferSize/4)*4;p<bufferSize-1;p++) {
+	            if (audioData[p]>0 && audioData[p+1]<=0) numCrossing++;
+	            if (audioData[p]<0 && audioData[p+1]>=0) numCrossing++;
+	            }
+	                                            
+	     
+	      freq=(SAMPLE_RATE/bufferSize)*(numCrossing/2);
+	    return freq;
+}
+	      
+public void getMaxAmplitude(){		     
+	   
+		amplitude=audioData[0]; 
+		for (short s : audioData) { 
+			if (Math.abs(s)>amplitude) amplitude=Math.abs(s); 
 		}
+		
+}
+
+public void getMedianAmplitude(){
+	int sum=0;
+	for (short s : audioData) { 
+		sum+=Math.abs(s);
 	}
+	amplitude=sum/audioData.length;
+	
+}
  
  
  
@@ -181,7 +194,8 @@ private void initRecorder(){
   
   @Override
   public void onResume() {
-    super.onResume();
+	  Log.d("RESUME","RESUME");
+	  super.onResume();
     camera=Camera.open();
     startPreview();
     initRecorder();
@@ -193,7 +207,7 @@ private void initRecorder(){
   @Override
   public void onPause() {
 	  //intrerrupt camera and recorder thread
-	  
+	  Log.d("PAUSE","PAUSE");
 	  super.onPause();
 	  if (inPreview) {
       camera.stopPreview();
