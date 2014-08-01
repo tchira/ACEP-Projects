@@ -103,7 +103,7 @@ private void initRecorder(){
 				recorder.startRecording();
 	 
 				
-	 	rThread = new Thread(new Runnable() {
+				rThread = new Thread(new Runnable() {
 				        public void run() {
 				        	while(rThread != null && !rThread.isInterrupted()){
 				        		try{ Thread.sleep(75); } catch (Exception e){e.printStackTrace();} 
@@ -139,7 +139,7 @@ private void initRecorder(){
  }
   
  private void readAudioBuffer() {
-	 		
+	 		//read audioData
 	 		audioData = new short [bufferSize]; //short array that pcm data is put into.
 			recorder.read(audioData,0,bufferSize); //read the PCM audio data into the audioData array
 	          
