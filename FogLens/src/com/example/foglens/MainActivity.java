@@ -43,13 +43,15 @@ public class MainActivity extends Activity implements OnSeekBarChangeListener {
   //Recorder constants
   private static final int SAMPLE_DELAY = 75;
   private static final int MIN_AMP_LIMIT=16000;
+  //private static final int MIN_AMP_LIMIT=2300;  //for median amp
   private static final int MAX_FREQ_LIMIT=150;
-  private static final int MAX_AMP_LIMIT=18000;
+  private static final int MAX_AMP_LIMIT=18000; 
+ // private static final int MAX_AMP_LIMIT=3000; //for median amp
   private static final int MIN_FREQ_LIMIT=40;
   private static final int SAMPLE_RATE=48000;
-  private static final double ALPHA=0.05;
-  static final private double EMA_FILTER = 0.6;
   
+ 
+
   
   //
   //Layout initialisation
